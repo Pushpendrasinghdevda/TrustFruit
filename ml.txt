@@ -1,0 +1,19 @@
+# ML Pipeline
+
+The ML component is intended to analyze spectral measurements obtained from the AS7343 sensor.
+
+## Pipeline
+
+Sensor readings
+→ preprocessing
+→ feature representation
+→ model inference
+→ condition/pattern classification
+
+## Data Note
+
+Prototype experiments have included synthetic data for testing the ML pipeline.
+
+Synthetic data is **not equivalent to laboratory-confirmed pesticide measurements** and is not presented as evidence of real-world pesticide detection accuracy.
+
+Future development requires matched real samples with laboratory-confirmed labels.

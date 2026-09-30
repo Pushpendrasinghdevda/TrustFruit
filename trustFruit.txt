@@ -1,0 +1,69 @@
+TrustFruit 🍎
+
+ AI-Assisted Agricultural Produce Screening
+
+**See what your eyes can't.**
+
+TrustFruit is a prototype for rapid, non-destructive screening of fruit condition using spectral sensing and AI-assisted pattern analysis.
+
+Problem
+
+Some problems affecting agricultural produce may not be obvious from external appearance. Farmers and produce handlers need accessible ways to obtain additional information about fruit condition before making sorting and quality decisions.
+
+Our Approach
+
+TrustFruit combines:
+
+* AS7343 multi-channel spectral sensing
+* Controlled illumination
+* ESP8266/NodeMCU-based data collection
+* AI/ML-based pattern analysis
+* OLED display for local results
+* Optional cloud/data storage using Firebase
+
+Prototype Flow
+
+Fruit
+→ Controlled illumination
+→ AS7343 spectral readings
+→ Data processing
+→ AI/ML pattern analysis
+→ Screening result
+
+ Current Prototype Status
+
+The current prototype demonstrates the sensing and AI-assisted screening approach.
+
+It should be considered a **research/proof-of-concept prototype**, not a laboratory-certified food-safety instrument.
+
+In particular, pesticide-residue detection has **not** been laboratory validated with matched reference samples. Further laboratory validation and larger real-world datasets are required before making such a claim.
+
+## Hardware
+
+* AS7343 spectral sensor
+* ESP8266 / NodeMCU
+* OLED display
+* Controlled light source
+* Prototype enclosure/setup
+
+## Software
+
+The project uses embedded firmware for sensor acquisition and an AI/ML processing pipeline for interpreting spectral patterns.
+
+Previous prototype work also explored Firebase for storing/communicating sensor data.
+
+## Demonstration
+
+The accompanying demo demonstrates the current physical prototype and its sensing/output workflow.
+Future Development
+
+* Larger real-world agricultural datasets
+* Laboratory-confirmed reference samples
+* Improved model validation
+* Integration with agricultural advisory systems
+* Cloud-based monitoring and analytics
+* Validation across different fruit varieties and growing conditions
+
+ Disclaimer
+
+TrustFruit is currently a prototype for research and demonstration. Its outputs should not be treated as laboratory certification or a replacement for official food-safety testing.
