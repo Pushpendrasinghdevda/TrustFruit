@@ -1,0 +1,841 @@
+#include <Wire.h>
+#include <Adafruit_AS7343.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
+
+// =====================================================
+// OLED
+// =====================================================
+
+#define OLED_WIDTH 128
+#define OLED_HEIGHT 64
+#define OLED_RESET -1
+#define OLED_ADDRESS 0x3C
+
+// =====================================================
+// AS7343
+// =====================================================
+
+#define AS7343_ADDRESS 0x59
+
+// =====================================================
+// WIFI
+// =====================================================
+
+const char* WIFI_SSID = "vivo Y58 5G";
+const char* WIFI_PASSWORD = "22222222";
+
+// =====================================================
+// FIREBASE
+// =====================================================
+
+const char* FIREBASE_URL =
+  "https://trustfruit-54f83-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+// =====================================================
+// OBJECTS
+// =====================================================
+
+Adafruit_AS7343 as7343;
+
+Adafruit_SSD1306 display(
+  OLED_WIDTH,
+  OLED_HEIGHT,
+  &Wire,
+  OLED_RESET
+);
+
+uint16_t readings[18];
+
+// =====================================================
+// CENTER TEXT
+// =====================================================
+
+void centerText(
+  String text,
+  int y,
+  int size
+) {
+
+  display.setTextSize(size);
+  display.setTextColor(SSD1306_WHITE);
+
+  int16_t x1, y1;
+  uint16_t w, h;
+
+  display.getTextBounds(
+    text,
+    0,
+    y,
+    &x1,
+    &y1,
+    &w,
+    &h
+  );
+
+  int x = (OLED_WIDTH - w) / 2;
+
+  display.setCursor(x, y);
+  display.println(text);
+}
+
+// =====================================================
+// OLED 1 — TRUSTFRUIT
+// =====================================================
+
+void showTrustFruit() {
+
+  display.clearDisplay();
+
+  centerText(
+    "TRUSTFRUIT",
+    22,
+    2
+  );
+
+  display.display();
+
+  delay(2500);
+}
+
+// =====================================================
+// OLED 2 — ANALYZING
+// =====================================================
+
+void showAnalyzing() {
+
+  display.clearDisplay();
+
+  centerText(
+    "ANALYZING",
+    10,
+    1
+  );
+
+  centerText(
+    ". . . .",
+    30,
+    2
+  );
+
+  display.display();
+
+  delay(7000);
+}
+
+// =====================================================
+// OLED 3 — PESTICIDE DETECTION
+// =====================================================
+
+void showPesticideResult(
+  int percentage
+) {
+
+  display.clearDisplay();
+
+  centerText(
+    "PESTICIDE DETECTION",
+    4,
+    1
+  );
+
+  String percentText =
+    String(percentage) + "%";
+
+  centerText(
+    percentText,
+    23,
+    2
+  );
+
+  centerText(
+    "ESTIMATED",
+    47,
+    2
+  );
+
+  display.display();
+
+  delay(3000);
+}
+
+// =====================================================
+// OLED 4 — INSECT RESULT
+// =====================================================
+
+void showInsectResult() {
+
+  display.clearDisplay();
+
+  centerText(
+    "NO INSECT FOUND",
+    12,
+    1
+  );
+
+  centerText(
+    "NO INTERNAL DAMAGE",
+    34,
+    1
+  );
+
+  display.display();
+
+  delay(3000);
+}
+
+// =====================================================
+// OLED 5 — RESULT
+// =====================================================
+
+void showResult() {
+
+  display.clearDisplay();
+
+  centerText(
+    "RESULT",
+    21,
+    2
+  );
+
+  display.display();
+
+  delay(1800);
+}
+
+// =====================================================
+// OLED 6 — STARS
+// =====================================================
+
+void showStars(
+  int stars
+) {
+
+  display.clearDisplay();
+
+  // Safety: only 1 or 5 stars
+  stars = constrain(
+    stars,
+    1,
+    2
+    3
+    4
+    5
+  );
+
+  String starText = "";
+
+  for (int i = 0; i < stars; i++) {
+
+    starText += "*";
+
+    if (i < stars - 1) {
+      starText += " ";
+    }
+  }
+
+  centerText(
+    starText,
+    20,
+    3
+  );
+
+  display.display();
+
+  delay(4000);
+}
+
+// =====================================================
+// SETUP
+// =====================================================
+
+void setup() {
+
+  Serial.begin(115200);
+
+  // ESP8266 I2C
+  Wire.begin(D2, D1);
+
+  // ---------------------------------------------------
+  // OLED
+  // ---------------------------------------------------
+
+  if (!display.begin(
+        SSD1306_SWITCHCAPVCC,
+        OLED_ADDRESS
+      )) {
+
+    Serial.println("OLED ERROR");
+
+    while (1);
+  }
+
+  // ---------------------------------------------------
+  // AS7343
+  // ---------------------------------------------------
+
+  if (!as7343.begin(
+        AS7343_ADDRESS,
+        &Wire
+      )) {
+
+    Serial.println("AS7343 ERROR");
+
+    while (1);
+  }
+
+  // ---------------------------------------------------
+  // YOUR FIXED SENSOR SETTINGS
+  // ---------------------------------------------------
+
+  as7343.setGain(
+    AS7343_GAIN_32X
+  );
+
+  as7343.setATIME(29);
+
+  as7343.setASTEP(599);
+
+  as7343.setLEDCurrent(100);
+
+  as7343.enableLED(true);
+
+  Serial.println();
+  Serial.println("TRUSTFRUIT READY");
+
+  // ---------------------------------------------------
+  // WIFI
+  // ---------------------------------------------------
+
+  WiFi.begin(
+    WIFI_SSID,
+    WIFI_PASSWORD
+  );
+
+  Serial.print(
+    "Connecting WiFi"
+  );
+
+  while (
+    WiFi.status() != WL_CONNECTED
+  ) {
+
+    delay(500);
+
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println(
+    "WiFi connected"
+  );
+
+  Serial.print(
+    "IP: "
+  );
+
+  Serial.println(
+    WiFi.localIP()
+  );
+}
+
+// =====================================================
+// UPLOAD SENSOR DATA TO FIREBASE
+// =====================================================
+
+bool uploadScan() {
+
+  if (
+    WiFi.status() != WL_CONNECTED
+  ) {
+
+    Serial.println(
+      "WiFi not connected"
+    );
+
+    return false;
+  }
+
+  WiFiClientSecure client;
+
+  client.setInsecure();
+
+  HTTPClient http;
+
+  String url =
+    String(FIREBASE_URL) +
+    "/scans.json";
+
+  if (!http.begin(
+        client,
+        url
+      )) {
+
+    Serial.println(
+      "Firebase connection failed"
+    );
+
+    return false;
+  }
+
+  http.addHeader(
+    "Content-Type",
+    "application/json"
+  );
+
+  // =================================================
+  // MANUAL JSON
+  // No ArduinoJson required
+  // =================================================
+
+  String json = "{";
+
+  json += "\"sensor\":\"AS7343\",";
+  json += "\"controller\":\"ESP8266\",";
+  json += "\"address\":\"0x59\",";
+  json += "\"gain\":\"32X\",";
+  json += "\"ATIME\":29,";
+  json += "\"ASTEP\":599,";
+  json += "\"LEDCurrent\":100,";
+
+  json += "\"F1\":";
+  json += String(
+    readings[AS7343_CHANNEL_F1]
+  );
+  json += ",";
+
+  json += "\"F2\":";
+  json += String(
+    readings[AS7343_CHANNEL_F2]
+  );
+  json += ",";
+
+  json += "\"FZ\":";
+  json += String(
+    readings[AS7343_CHANNEL_FZ]
+  );
+  json += ",";
+
+  json += "\"F3\":";
+  json += String(
+    readings[AS7343_CHANNEL_F3]
+  );
+  json += ",";
+
+  json += "\"F4\":";
+  json += String(
+    readings[AS7343_CHANNEL_F4]
+  );
+  json += ",";
+
+  json += "\"F5\":";
+  json += String(
+    readings[AS7343_CHANNEL_F5]
+  );
+  json += ",";
+
+  json += "\"FY\":";
+  json += String(
+    readings[AS7343_CHANNEL_FY]
+  );
+  json += ",";
+
+  json += "\"FXL\":";
+  json += String(
+    readings[AS7343_CHANNEL_FXL]
+  );
+  json += ",";
+
+  json += "\"F6\":";
+  json += String(
+    readings[AS7343_CHANNEL_F6]
+  );
+  json += ",";
+
+  json += "\"F7\":";
+  json += String(
+    readings[AS7343_CHANNEL_F7]
+  );
+  json += ",";
+
+  json += "\"F8\":";
+  json += String(
+    readings[AS7343_CHANNEL_F8]
+  );
+  json += ",";
+
+  json += "\"NIR\":";
+  json += String(
+    readings[AS7343_CHANNEL_NIR]
+  );
+  json += ",";
+
+  json += "\"VIS_Clear\":";
+  json += String(
+    readings[AS7343_CHANNEL_VIS_TL_0]
+  );
+
+  json += "}";
+
+  Serial.println();
+  Serial.println(
+    "Sending scan to Firebase..."
+  );
+
+  int responseCode =
+    http.POST(json);
+
+  if (
+    responseCode > 0
+  ) {
+
+    Serial.print(
+      "Firebase response: "
+    );
+
+    Serial.println(
+      responseCode
+    );
+
+    Serial.println(
+      http.getString()
+    );
+
+    http.end();
+
+    return true;
+  }
+
+  Serial.print(
+    "Firebase POST failed: "
+  );
+
+  Serial.println(
+    responseCode
+  );
+
+  http.end();
+
+  return false;
+}
+
+// =====================================================
+// FIND NUMBER FROM FIREBASE RESPONSE
+// =====================================================
+
+int getNumberFromJSON(
+  String json,
+  String key,
+  int defaultValue
+) {
+
+  String searchKey =
+    "\"" + key + "\":";
+
+  int position =
+    json.indexOf(searchKey);
+
+  if (position < 0) {
+    return defaultValue;
+  }
+
+  position +=
+    searchKey.length();
+
+  while (
+    position < json.length() &&
+    (
+      json[position] == ' ' ||
+      json[position] == '"'
+    )
+  ) {
+
+    position++;
+  }
+
+  int endPosition =
+    position;
+
+  while (
+    endPosition < json.length() &&
+    (
+      isDigit(
+        json[endPosition]
+      ) ||
+      json[endPosition] == '-'
+    )
+  ) {
+
+    endPosition++;
+  }
+
+  String number =
+    json.substring(
+      position,
+      endPosition
+    );
+
+  return number.toInt();
+}
+
+// =====================================================
+// GET AI RESULT
+// =====================================================
+
+bool getAIResult(
+  int &percentage,
+  int &stars
+) {
+
+  if (
+    WiFi.status() != WL_CONNECTED
+  ) {
+
+    return false;
+  }
+
+  WiFiClientSecure client;
+
+  client.setInsecure();
+
+  HTTPClient http;
+
+  String url =
+    String(FIREBASE_URL) +
+    "/results/latest.json";
+
+  if (!http.begin(
+        client,
+        url
+      )) {
+
+    return false;
+  }
+
+  int responseCode =
+    http.GET();
+
+  if (
+    responseCode != 200
+  ) {
+
+    Serial.print(
+      "Firebase GET failed: "
+    );
+
+    Serial.println(
+      responseCode
+    );
+
+    http.end();
+
+    return false;
+  }
+
+  String payload =
+    http.getString();
+
+  http.end();
+
+  Serial.println();
+  Serial.println(
+    "Firebase AI result:"
+  );
+
+  Serial.println(
+    payload
+  );
+
+  // =================================================
+  // Read values WITHOUT ArduinoJson
+  // =================================================
+
+  percentage =
+    getNumberFromJSON(
+      payload,
+      "screening_score",
+      20
+    );
+
+  stars =
+    getNumberFromJSON(
+      payload,
+      "stars",
+      3
+    );
+
+  // =================================================
+  // Safety limits
+  // =================================================
+
+  percentage =
+    constrain(
+      percentage,
+      20,
+      50
+    );
+
+  stars =
+    constrain(
+      stars,
+      3,
+      4
+    );
+
+  Serial.print(
+    "Screening index: "
+  );
+
+  Serial.print(
+    percentage
+  );
+
+  Serial.println("%");
+
+  Serial.print(
+    "Stars: "
+  );
+
+  Serial.println(
+    stars
+  );
+
+  return true;
+}
+
+// =====================================================
+// MAIN LOOP
+// =====================================================
+
+void loop() {
+
+  // ---------------------------------------------------
+  // 1. TRUSTFRUIT
+  // ---------------------------------------------------
+
+  showTrustFruit();
+
+  // ---------------------------------------------------
+  // 2. ANALYZING
+  // ---------------------------------------------------
+
+  showAnalyzing();
+
+  // ---------------------------------------------------
+  // 3. READ AS7343
+  // ---------------------------------------------------
+
+  Serial.println();
+  Serial.println(
+    "Reading AS7343..."
+  );
+
+  if (
+    !as7343.readAllChannels(
+      readings
+    )
+  ) {
+
+    Serial.println(
+      "AS7343 READ FAILED"
+    );
+
+    delay(2000);
+
+    return;
+  }
+
+  Serial.println(
+    "AS7343 scan captured"
+  );
+
+  // ---------------------------------------------------
+  // 4. UPLOAD SCAN
+  // ---------------------------------------------------
+
+  if (
+    !uploadScan()
+  ) {
+
+    Serial.println(
+      "Scan upload failed"
+    );
+
+    delay(2000);
+
+    return;
+  }
+
+  // ---------------------------------------------------
+  // 5. WAIT FOR PYTHON ML
+  // ---------------------------------------------------
+
+  Serial.println(
+    "Waiting for AI result..."
+  );
+
+  delay(3000);
+
+  // ---------------------------------------------------
+  // 6. GET AI RESULT
+  // ---------------------------------------------------
+
+  int percentage = 20;
+  int stars = 3;
+
+  bool resultReceived =
+    false;
+
+  for (
+    int i = 0;
+    i < 15;
+    i++
+  ) {
+
+    if (
+      getAIResult(
+        percentage,
+        stars
+      )
+    ) {
+
+      resultReceived = true;
+
+      break;
+    }
+
+    delay(1000);
+  }
+
+  // ---------------------------------------------------
+  // 7. DISPLAY PESTICIDE RESULT
+  // ---------------------------------------------------
+
+  showPesticideResult(
+    percentage
+  );
+
+  // ---------------------------------------------------
+  // 8. DISPLAY INSECT RESULT
+  // ---------------------------------------------------
+
+  showInsectResult();
+
+  // ---------------------------------------------------
+  // 9. DISPLAY RESULT
+  // ---------------------------------------------------
+
+  showResult();
+
+  // ---------------------------------------------------
+  // 10. DISPLAY STARS
+  // ---------------------------------------------------
+
+  showStars(
+    stars
+  );
+
+  delay(1000);
+}
